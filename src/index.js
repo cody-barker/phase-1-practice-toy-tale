@@ -1,9 +1,10 @@
 let addToy = false;
 
-document.addEventListener("DOMContentLoaded", () => {
-  const addBtn = document.querySelector("#new-toy-btn");
-  const toyFormContainer = document.querySelector(".container");
-  addBtn.addEventListener("click", () => {
+const api = 'http://localhost:3000/toys'
+
+const addBtn = document.querySelector("#new-toy-btn");
+const toyFormContainer = document.querySelector(".container");
+addBtn.addEventListener("click", () => {
     // hide & seek with the form
     addToy = !addToy;
     if (addToy) {
@@ -11,97 +12,93 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       toyFormContainer.style.display = "none";
     }
-  });
 });
 
 const toyCollection = document.querySelector('#toy-collection')
 
-document.addEventListener("DOMContentLoaded", getAllToys)
+fetch(api)
+.then(resp => resp.json())
+.then(toyList => renderCards(toyList))
 
-function renderOneToy(toy){
-  let card = document.createElement('div')
-  card.className = 'card'
-  const h2 = document.createElement('h2')
-  h2.innerText = `${toy.name}`
-  const img = document.createElement('img')
-  img.src = `${toy.image}`
-  img.className = 'toy-avatar'
-  const p = document.createElement('p')
-  p.innerText = `${toy.likes} Likes`
-  const button = document.createElement('button')
-  button.className = 'like-btn'
-  button.id = `${toy.id}`
-  button.innerText ='Like ❤️'
-  button.addEventListener('click', addLikes)
-  
-  toyCollection.append(card)
-  card.append(h2, img, p, button)
- 
+
+function renderCards(toyList) {
+  toyList.forEach(toy => createCards(toy))
 }
 
-//e.target.button.previousSibling
+/**
+ * add click event listener to toy like buttons
+ * cb makes a patch request to the db
+ * capture toy id
+ * calculate new number of likes
+ * config obj sent to db/id has body key of likes with a value of newNumberOfLikes
+ * resp updates the card for the toy by first removing it and then calling createCards(toy)
+ */
 
-function addLikes(e){
-  fetch(`http://localhost:3000/toys/${e.target.id}`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json'
-    },
-    body: JSON.stringify({
-      'likes': e.target.previousSibling.innerText = `${toys.likes+= 1} Likes`
-    })
-  })
-  .then(resp => resp.json())
-  .then(toy => console.log(toy.likes))
-  .catch(error => console.log(error))
+
+function createCards(toy) {
+
+    function handlePatch() {
+      let newNumberOfLikes = ++ toy.likes
+      let toyBody = {
+        likes: newNumberOfLikes
+      }
+      let configObjPatch = {
+        "method": "PATCH",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "body": JSON.stringify(toyBody)
+      }
+      fetch(`http://localhost:3000/toys/${toy.id}`, configObjPatch)
+      .then(resp => resp.json())
+      .then(toy => {p.innerText = `${toy.likes} Likes`})
+    }
+
+    const card = document.createElement('div')
+    card.className = 'card'
+
+    const h2 = document.createElement('h2')
+    h2.innerText = toy.name
+
+    const img = document.createElement('img')
+    img.src = toy.image
+    img.className = 'toy-avatar'
+
+    const p = document.createElement('p')
+    p.innerText = `${toy.likes} Likes`
+
+    const button = document.createElement('button')
+    button.className = 'like-btn'
+    button.id = toy.id
+    button.innerText = 'Like ❤️'
+    button.addEventListener('click', handlePatch)
+
+    card.append(h2, img, p, button)
+    toyCollection.append(card)
 }
 
-// function newNumberOfLikes(toy) {
-//   console.log(toy)
-//   return toy.likes+= 1
-//   // p.innerText = `${toy.likes} Likes`
-//   // return p.innerText
-//   //this needs to return a number for the JSON object
-// }
+const toyForm = document.querySelector('.add-toy-form')
+toyForm.addEventListener('submit', handleSubmit)
 
-document.querySelector('.add-toy-form').addEventListener('submit', handleSubmit)
-
-function handleSubmit(e) {
+function handleSubmit (e) {
   e.preventDefault()
-  let toyObj = {
-    name:e.target.name.value,
-    image:e.target.image.value,
-    likes:0
-  }
-  renderOneToy(toyObj)
-  postNewToy(toyObj);
-}
-
-//FETCHES
-
-function getAllToys() {
-  fetch('http://localhost:3000/toys')
-  .then(resp => resp.json())
-  .then(data => data.forEach(toy => renderOneToy(toy)))
-}
-
-function postNewToy(toyObj) {
-  fetch('http://localhost:3000/toys', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json'
+  let configObj = {
+    "method": "POST",
+    "headers": {
+      "Content-Type": "application/json",
+      "Accept": "application/json"
     },
-    body: JSON.stringify(toyObj)
-    // {
-    //   'name': `${toyObj.name}`,
-    //   'image': `${toyObj.image}`,
-    // })
-  })
-  .then(res => res.json())
-  .then(toy => console.log(toy))
-  .catch(error => console.log(error))
+    "body": JSON.stringify({
+      name: e.target.children[1].value,
+      image: e.target.children[3].value,
+      likes: 0
+    })
+  }
+  fetch(api, configObj)
+  .then(resp => resp.json())
+  .then(toy => createCards(toy))
 }
+
 
 
